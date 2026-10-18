@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#166534">
+<meta name="description" content="Offline raw material purchase and supplier payment manager">
+<link rel="manifest" href="manifest.json">
+<title>Business Payment Calculator</title>
+<style>
+:root{--green:#166534;--green2:#15803d;--bg:#f4f7f4;--card:#fff;--ink:#17211a;--muted:#647067;--line:#dce5dd;--red:#b42318;--amber:#92400e}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--green);color:white;padding:18px 16px 14px;position:sticky;top:0;z-index:5;box-shadow:0 2px 8px #0001}
+header h1{font-size:20px;margin:0 0 4px}header p{font-size:12px;margin:0;opacity:.88}
+nav{display:flex;gap:6px;overflow:auto;padding:10px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:67px;z-index:4}
+nav button{white-space:nowrap;border:0;border-radius:20px;padding:9px 13px;background:#edf2ed;color:#26372b;font-weight:650}
+nav button.active{background:var(--green);color:white}
+main{max-width:1050px;margin:auto;padding:14px}
+.page{display:none}.page.active{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px;margin-bottom:13px;box-shadow:0 1px 3px #00004}
+h2{font-size:18px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stat{padding:13px;border-radius:12px;background:#eef6ef;border:1px solid #d8e8da}.stat small{display:block;color:var(--muted);font-size:12px}.stat strong{display:block;font-size:21px;margin-top:4px;overflow-wrap:anywhere}
+label{display:block;font-size:12px;color:#4b5a4f;font-weight:700;margin:10px 0 5px}
+input,select,textarea{width:100%;padding:11px 10px;border:1px solid #cbd7cd;border-radius:9px;background:white;font:inherit;color:var(--ink);min-width:0}
+input[type=checkbox]{width:auto}
+button,.button{cursor:pointer;border:0;border-radius:9px;padding:11px 13px;background:var(--green);color:white;font-weight:700;font:inherit}
+button.secondary{background:#e8eee9;color:#243629}button.danger{background:#b42318}button.small{padding:7px 9px;font-size:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.muted{color:var(--muted);font-size:12px}.notice{padding:10px 12px;background:#fff8e6;border:1px solid #f0d89b;border-radius:10px;color:#65420b;font-size:13px;margin-bottom:12px}
+.result{background:#eff8f0;border:1px solid #d2e7d5;border-radius:10px;padding:12px;margin-top:12px}
+.result div{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:13px}.result .final{border-top:1px solid #c5ddc8;margin-top:5px;padding-top:9px;font-size:16px;font-weight:800}
+.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px;min-width:620px}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:11px;text-transform:uppercase;color:var(--muted);background:#f8faf8}
+.pill{display:inline-block;border-radius:20px;padding:3px 8px;background:#e7f2e8;color:#245c30;font-size:11px;font-weight:700}
+.empty{padding:20px;text-align:center;color:var(--muted);font-size:13px}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+@media(min-width:700px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}main{padding:20px}}
+</style>
+</head>
+<body>
+<header><h1>Business Payment Calculator</h1><p>Raw material purchases · Supplier payments · Firm-wise reports</p></header>
+<nav id="nav">
+<button class="active" data-page="dashboard">Dashboard</button><button data-page="entry">New Entry</button><button data-page="records">Purchases</button><button data-page="suppliers">Supplier Ledger</button><button data-page="reports">Reports & Backup</button>
+</nav>
+<main>
+<section id="dashboard" class="page active">
+<div class="notice">Local/offline version: records stay on this device. Export a backup regularly. This version does not automatically sync between phones.</div>
+<div class="card"><h2>Dashboard filters</h2><div class="grid">
+<div><label>Firm</label><select id="dashFirm"><option>Both firms</option><option>OP Foods</option><option>Patra Foods</option></select></div>
+<div><label>From date</label><input type="date" id="dashFrom"></div><div><label>To date</label><input type="date" id="dashTo"></div>
+</div><div class="actions"><button id="applyDash">Apply filters</button><button class="secondary" id="resetDash">Today</button></div></div>
+<div class="stats">
+<div class="stat"><small>Actual quantity received</small><strong id="sQty">0 Q</strong></div>
+<div class="stat"><small>Final payable</small><strong id="sPayable">₹0</strong></div>
+<div class="stat"><small>Paid to suppliers</small><strong id="sPaid">₹0</strong></div>
+<div class="stat"><small>Outstanding balance</small><strong id="sDue">₹0</strong></div>
+</div>
+<div class="card"><h2>Average Price</h2><p class="muted">Quantity-weighted averages for the selected firm and custom date range. Purchase rate and effective payable rate are shown separately.</p>
+<div class="grid"><div><label>Firm</label><select id="avgFirm"><option>Both firms</option><option>OP Foods</option><option>Patra Foods</option></select></div><div><label>Raw material</label><select id="avgMaterial"><option value="">All materials</option></select></div><div><label>From date</label><input type="date" id="avgFrom"></div><div><label>To date</label><input type="date" id="avgTo"></div></div>
+<div class="actions"><button id="applyAvg">Calculate average</button><button class="secondary" id="exportAvg">Download average CSV</button></div>
+<div id="avgResults" class="result"><div><span>Purchase average</span><strong>₹0 / Q</strong></div><div><span>Effective payable average</span><strong>₹0 / Q</strong></div><div><span>Total actual quantity</span><strong>0 Q</strong></div></div>
+<div id="avgByFirm"></div>
+</div>
+<div class="card"><h2>Recent purchases</h2><div id="recent"></div></div>
+</section>
+<section id="entry" class="page">
+<div class="card"><h2 id="entryTitle">New raw material entry</h2><div class="notice"><b>Step 1:</b> Select the firm first. The material and supplier details below belong to that firm's account.</div>
+<form id="purchaseForm">
+<input type="hidden" id="editId">
+<div class="grid">
+<div><label>1. Receiving firm *</label><select id="firm" required><option value="">Select firm first</option><option>OP Foods</option><option>Patra Foods</option></select></div>
+<div><label>2. Raw material *</label><input id="material" list="materialsList" required placeholder="Enter/select raw material"><datalist id="materialsList"></datalist></div>
+<div><label>Purchase date *</label><input type="date" id="date" required></div>
+<div><label>Supplier name *</label><input id="supplier" required placeholder="Supplier full name"></div>
+<div><label>Village</label><input id="village" placeholder="Village name"></div>
+<div><label>Phone number</label><input id="phone" inputmode="tel" placeholder="Supplier phone"></div>
+<div><label>Actual weight (quintals) *</label><input type="number" id="qty" min="0.001" step="0.001" required placeholder="e.g. 25"></div>
+<div><label>Price per quintal (₹) *</label><input type="number" id="rate" min="0" step="0.01" required placeholder="e.g. 2400"></div>
+<div><label>Advance/amount already paid (₹)</label><input type="number" id="paid" min="0" step="0.01" value="0"></div>
+</div>
+<div class="result" id="calcResult"><div><span>Weight deduction (3.5 kg per Q)</span><strong>0 Q</strong></div><div><span>Net weight</span><strong>0 Q</strong></div><div><span>Amount after weight deduction</span><strong>₹0</strong></div><div><span>Labour (₹25 per actual Q)</span><strong>₹0</strong></div><div><span>Amount after labour</span><strong>₹0</strong></div><div><span>1% deduction</span><strong>₹0</strong></div><div class="final"><span>Final payable</span><strong>₹0</strong></div><div><span>Outstanding after paid</span><strong>₹0</strong></div></div>
+<label>Notes (optional)</label><textarea id="notes" rows="2" placeholder="Load details, quality notes, etc."></textarea>
+<div class="actions"><button type="submit" id="savePurchase">Save purchase</button><button type="button" class="secondary" id="resetForm">Clear form</button><button type="button" class="secondary" id="shareReceipt">Share receipt</button></div>
+<p class="muted">Calculation rules: deduct 3.5 kg per actual quintal; labour ₹25 per actual quintal; then deduct 1% from the amount remaining after labour.</p>
+</form></div>
+</section>
+<section id="records" class="page">
+<div class="card"><h2>Purchase records</h2><div class="grid"><div><label>Firm</label><select id="recFirm"><option>Both firms</option><option>OP Foods</option><option>Patra Foods</option></select></div><div><label>Supplier/material search</label><input id="recSearch" placeholder="Search name or material"></div><div><label>From date</label><input type="date" id="recFrom"></div><div><label>To date</label><input type="date" id="recTo"></div></div><div class="actions"><button id="filterRecords">Filter</button><button class="secondary" id="exportRecords">Download filtered CSV</button></div><div id="recordsTable"></div></div>
+</section>
+<section id="suppliers" class="page">
+<div class="card"><h2>Supplier ledger</h2><div class="grid"><div><label>Firm</label><select id="ledgerFirm"><option>Both firms</option><option>OP Foods</option><option>Patra Foods</option></select></div><div><label>Supplier</label><input id="ledgerSupplier" list="supplierList" placeholder="Enter supplier name"><datalist id="supplierList"></datalist></div></div><div class="actions"><button id="showLedger">Show ledger</button><button class="secondary" id="exportLedger">Download ledger CSV</button></div><div id="ledgerResults"></div></div>
+</section>
+<section id="reports" class="page">
+<div class="card"><h2>Backup and restore</h2><p class="muted">Backup includes purchases and recorded payments. Keep a copy somewhere safe.</p><div class="actions"><button id="backupJson">Download full JSON backup</button><button class="secondary" id="backupCsv">Download all purchases CSV</button></div><label>Restore JSON backup</label><input type="file" id="restoreFile" accept=".json,application/json"><div class="actions"><button class="danger" id="restoreBtn">Restore backup (merge records)</button></div><p class="muted">Restoring merges records by ID and does not erase existing records.</p></div>
+<div class="card"><h2>Manage supplier payments</h2><p class="muted">Record later/partial payments against a purchase. Each payment is linked to the selected purchase.</p><label>Select purchase</label><select id="paymentPurchase"></select><div class="grid"><div><label>Payment date</label><input type="date" id="paymentDate"></div><div><label>Payment amount (₹)</label><input type="number" min="0.01" step="0.01" id="paymentAmount"></div><div><label>Mode/reference</label><input id="paymentMode" placeholder="Cash, UPI, bank ref"></div></div><div class="actions"><button id="addPayment">Record payment</button></div><div id="paymentsList"></div></div>
+<div class="card"><h2>Data and safety</h2><p class="muted">Edit changes a purchase record. Cancel marks it cancelled rather than deleting it, preserving an audit trail. Export JSON before clearing browser data or changing devices.</p><div class="actions"><button class="danger" id="clearAll">Delete all local data</button></div></div>
+</section>
+</main>
+<script>
+const DBKEY='businessPaymentCalculator_v1';
+let db={purchases:[],payments:[]};
+try{const saved=localStorage.getItem(DBKEY);if(saved)db=JSON.parse(saved);if(!db.purchases)db.purchases=[];if(!db.payments)db.payments=[];}catch(e){alert('Stored data could not be read. Restore a JSON backup if available.');}
+const $=id=>document.getElementById(id);
+const money=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const num=n=>Number(n)||0;
+const today=()=>new Date().toLocaleDateString('en-CA');
+function save(){localStorage.setItem(DBKEY,JSON.stringify(db));}
+function uid(){return 'p_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);}
+function activePurchases(){return db.purchases.filter(p=>!p.cancelled);}
+function paymentsFor(id){return db.payments.filter(x=>x.purchaseId===id).reduce((s,x)=>s+num(x.amount),0);}
+function paidFor(p){return num(p.initialPaid)+paymentsFor(p.id);}
+function calc(q,r){const weightDed=num(q)*0.035;const net=Math.max(0,num(q)-weightDed);const amount=net*num(r);const labour=num(q)*25;const afterLabour=Math.max(0,amount-labour);const deduction=afterLabour*0.01;const final=Math.max(0,afterLabour-deduction);return {weightDed,net,amount,labour,afterLabour,deduction,final};}
+function purchaseTotal(p){return calc(p.qty,p.rate).final;}
+function remaining(p){return Math.max(0,purchaseTotal(p)-paidFor(p));}
+function firmMatch(p,firm){return firm==='Both firms'||!firm||p.firm===firm;}
+function dateMatch(p,from,to){return (!from||p.date>=from)&&(!to||p.date<=to);}
+function filtered(list,firm,from,to){return list.filter(p=>!p.cancelled&&firmMatch(p,firm)&&dateMatch(p,from,to));}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===id));if(id==='dashboard')renderDashboard();if(id==='records')renderRecords();if(id==='suppliers')refreshSupplierList();if(id==='reports')refreshPaymentSelect();}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+function updateCalc(){const c=calc($('qty').value,$('rate').value), paid=num($('paid').value);$('calcResult').innerHTML=`<div><span>Weight deduction (Q)</span><strong>${c.weightDed.toFixed(3)} Q</strong></div><div><span>Net weight</span><strong>${c.net.toFixed(3)} Q</strong></div><div><span>Amount after weight deduction</span><strong>${money(c.amount)}</strong></div><div><span>Labour</span><strong>${money(c.labour)}</strong></div><div><span>Amount after labour</span><strong>${money(c.afterLabour)}</strong></div><div><span>1% deduction</span><strong>${money(c.deduction)}</strong></div><div class="final"><span>Final payable</span><strong>${money(c.final)}</strong></div><div><span>Outstanding after paid</span><strong>${money(Math.max(0,c.final-paid))}</strong></div>`;}
+['qty','rate','paid'].forEach(id=>$(id).addEventListener('input',updateCalc));
+$('firm').addEventListener('change',()=>{refreshMaterialList($('firm').value);});
+function refreshMaterialList(firm){const mats=[...new Set(activePurchases().filter(p=>!firm||p.firm===firm).map(p=>p.material).filter(Boolean))];$('materialsList').innerHTML=mats.map(x=>`<option value="${esc(x)}">`).join('');}
+function resetForm(){ $('purchaseForm').reset();$('editId').value='';$('date').value=today();$('paid').value='0';$('entryTitle').textContent='New raw material entry';$('savePurchase').textContent='Save purchase';updateCalc();refreshMaterialList('');}
+$('resetForm').onclick=resetForm;
+$('purchaseForm').onsubmit=e=>{e.preventDefault();const id=$('editId').value;const old=db.purchases.find(p=>p.id===id);const p={id:id||uid(),firm:$('firm').value,material:$('material').value.trim(),date:$('date').value,supplier:$('supplier').value.trim(),village:$('village').value.trim(),phone:$('phone').value.trim(),qty:num($('qty').value),rate:num($('rate').value),initialPaid:num($('paid').value),notes:$('notes').value.trim(),cancelled:false,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};if(!p.firm){alert('Select the receiving firm first.');return;}if(!p.material||!p.supplier||!p.date||p.qty<=0||p.rate<0){alert('Please complete required fields correctly.');return;}if(old){Object.assign(old,p); }else db.purchases.push(p);save();alert(old?'Purchase updated.':'Purchase saved.');resetForm();showPage('dashboard');};
+function editPurchase(id){const p=db.purchases.find(x=>x.id===id);if(!p)return;showPage('entry');$('editId').value=p.id;$('firm').value=p.firm;refreshMaterialList(p.firm);['material','date','supplier','village','phone','qty','rate','paid','notes'].forEach(k=>$(k).value=p[k]??(k==='paid'?0:''));$('entryTitle').textContent='Edit purchase';$('savePurchase').textContent='Save changes';updateCalc();}
+function cancelPurchase(id){const p=db.purchases.find(x=>x.id===id);if(!p)return;if(!confirm('Cancel this purchase? It will be retained in records but excluded from totals.'))return;p.cancelled=true;p.cancelledAt=new Date().toISOString();save();renderRecords();renderDashboard();}
+function table(rows,headers){if(!rows.length)return '<div class="empty">No records found for these filters.</div>';return `<div class="tablewrap"><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;}
+function renderDashboard(){const list=filtered(activePurchases(),$('dashFirm').value,$('dashFrom').value,$('dashTo').value);const qty=list.reduce((s,p)=>s+num(p.qty),0),pay=list.reduce((s,p)=>s+purchaseTotal(p),0),paid=list.reduce((s,p)=>s+paidFor(p),0),due=list.reduce((s,p)=>s+remaining(p),0);$('sQty').textContent=qty.toLocaleString('en-IN',{maximumFractionDigits:3})+' Q';$('sPayable').textContent=money(pay);$('sPaid').textContent=money(paid);$('sDue').textContent=money(due);$('recent').innerHTML=table(list.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.firm)}</td><td>${esc(p.supplier)}</td><td>${esc(p.material)}</td><td>${num(p.qty).toFixed(3)} Q</td><td>${money(purchaseTotal(p))}</td></tr>`),['Date','Firm','Supplier','Material','Quantity','Final payable']);renderAverage();}
+$('applyDash').onclick=renderDashboard;$('resetDash').onclick=()=>{$('dashFrom').value=today();$('dashTo').value=today();renderDashboard();};
+function allMaterials(){return [...new Set(activePurchases().map(p=>p.material).filter(Boolean))].sort();}
+function refreshAvgMaterials(){const old=$('avgMaterial').value;const opts=allMaterials();$('avgMaterial').innerHTML='<option value="">All materials</option>'+opts.map(m=>`<option>${esc(m)}</option>`).join('');if(opts.includes(old))$('avgMaterial').value=old;}
+function avgData(firm,material,from,to){let list=filtered(activePurchases(),firm,from,to);if(material)list=list.filter(p=>p.material===material);const actual=list.reduce((s,p)=>s+num(p.qty),0),net=list.reduce((s,p)=>s+calc(p.qty,p.rate).net,0),purchaseValue=list.reduce((s,p)=>s+calc(p.qty,p.rate).amount,0),payable=list.reduce((s,p)=>s+purchaseTotal(p),0);return {list,actual,net,purchaseValue,payable,purchaseAvg:net?purchaseValue/net:0,payableAvg:actual?payable/actual:0};}
+function renderAverage(){refreshAvgMaterials();const d=avgData($('avgFirm').value,$('avgMaterial').value,$('avgFrom').value,$('avgTo').value);$('avgResults').innerHTML=`<div><span>Purchase average (net-weight weighted)</span><strong>${money(d.purchaseAvg)} / Q</strong></div><div><span>Effective payable average (actual-weight basis)</span><strong>${money(d.payableAvg)} / Q</strong></div><div><span>Total actual quantity</span><strong>${d.actual.toLocaleString('en-IN',{maximumFractionDigits:3})} Q</strong></div><div><span>Net quantity after weight deduction</span><strong>${d.net.toLocaleString('en-IN',{maximumFractionDigits:3})} Q</strong></div><div><span>Purchases included</span><strong>${d.list.length}</strong></div>`;
+let html='';const firms=$('avgFirm').value==='Both firms'?['OP Foods','Patra Foods']:[$('avgFirm').value];for(const f of firms){const x=avgData(f,$('avgMaterial').value,$('avgFrom').value,$('avgTo').value);html+=`<div class="result"><h3>${esc(f)}</h3><div><span>Purchase average / Q</span><strong>${money(x.purchaseAvg)}</strong></div><div><span>Effective payable average / Q</span><strong>${money(x.payableAvg)}</strong></div><div><span>Actual quantity</span><strong>${x.actual.toFixed(3)} Q</strong></div></div>`;}$('avgByFirm').innerHTML=html;}
+$('applyAvg').onclick=renderAverage;['avgFirm','avgMaterial','avgFrom','avgTo'].forEach(id=>$(id).addEventListener('change',renderAverage));
+function renderRecords(){let list=activePurchases().filter(p=>firmMatch(p,$('recFirm').value)&&dateMatch(p,$('recFrom').value,$('recTo').value));const q=$('recSearch').value.toLowerCase().trim();if(q)list=list.filter(p=>[p.supplier,p.material,p.village,p.phone,p.firm].join(' ').toLowerCase().includes(q));list.sort((a,b)=>b.date.localeCompare(a.date));$('recordsTable').innerHTML=table(list.map(p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.firm)}</td><td>${esc(p.material)}</td><td>${esc(p.supplier)}<br><span class="muted">${esc(p.village)}</span></td><td>${num(p.qty).toFixed(3)} Q</td><td>${money(p.rate)}</td><td>${money(purchaseTotal(p))}</td><td>${money(paidFor(p))}</td><td>${money(remaining(p))}</td><td><div class="actions"><button class="small" onclick="editPurchase('${p.id}')">Edit</button><button class="small danger" onclick="cancelPurchase('${p.id}')">Cancel</button><button class="small secondary" onclick="makeReceipt('${p.id}')">Receipt</button></div></td></tr>`),['Date','Firm','Material','Supplier','Qty','Rate/Q','Payable','Paid','Due','Actions']);}
+$('filterRecords').onclick=renderRecords;$('recSearch').addEventListener('input',renderRecords);$('recFirm').onchange=renderRecords;
+function csvDownload(filename,rows){const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+function purchaseRows(list){return [['ID','Firm','Date','Raw Material','Supplier','Village','Phone','Actual Weight (Quintals)','Price per Quintal','Weight Deduction (Quintals)','Net Weight (Quintals)','Amount After Weight Deduction','Labour Charges','Amount After Labour','1% Deduction','Final Payment','Initial Paid','Additional Payments','Total Paid','Outstanding','Notes','Cancelled'],...list.map(p=>{const c=calc(p.qty,p.rate),extra=paymentsFor(p.id);return [p.id,p.firm,p.date,p.material,p.supplier,p.village,p.phone,p.qty,p.rate,c.weightDed,c.net,c.amount,c.labour,c.afterLabour,c.deduction,c.final,p.initialPaid,extra,paidFor(p),remaining(p),p.notes,p.cancelled?'Yes':'No'];})];}
+$('exportRecords').onclick=()=>{let list=activePurchases().filter(p=>firmMatch(p,$('recFirm').value)&&dateMatch(p,$('recFrom').value,$('recTo').value));const q=$('recSearch').value.toLowerCase().trim();if(q)list=list.filter(p=>[p.supplier,p.material,p.village,p.phone,p.firm].join(' ').toLowerCase().includes(q));csvDownload('purchases_filtered_'+today()+'.csv',purchaseRows(list));};
+$('exportAvg').onclick=()=>{const firm=$('avgFirm').value,mat=$('avgMaterial').value,from=$('avgFrom').value,to=$('avgTo').value;let rows=[['Firm','Raw Material','From','To','Actual Quantity Q','Net Quantity Q','Purchase Average per Q','Effective Payable Average per Q','Purchase Count']];const firms=firm==='Both firms'?['OP Foods','Patra Foods']:[firm];for(const f of firms){const d=avgData(f,mat,from,to);rows.push([f,mat||'All materials',from,to,d.actual,d.net,d.purchaseAvg,d.payableAvg,d.list.length]);}csvDownload('average_price_'+today()+'.csv',rows);};
+function refreshSupplierList(){const names=[...new Set(activePurchases().map(p=>p.supplier).filter(Boolean))].sort();$('supplierList').innerHTML=names.map(n=>`<option value="${esc(n)}">`).join('');}
+function renderLedger(){const firm=$('ledgerFirm').value,sup=$('ledgerSupplier').value.trim().toLowerCase();let list=filtered(activePurchases(),firm,'','').filter(p=>!sup||p.supplier.toLowerCase()===sup);list.sort((a,b)=>a.date.localeCompare(b.date));let balance=0;const rows=list.map(p=>{const payable=purchaseTotal(p),paid=paidFor(p);balance+=payable-paid;return `<tr><td>${esc(p.date)}</td><td>${esc(p.firm)}</td><td>${esc(p.material)}</td><td>${num(p.qty).toFixed(3)}</td><td>${money(payable)}</td><td>${money(paid)}</td><td>${money(remaining(p))}</td></tr>`;});$('ledgerResults').innerHTML=`<div class="stats"><div class="stat"><small>Purchase payable</small><strong>${money(list.reduce((s,p)=>s+purchaseTotal(p),0))}</strong></div><div class="stat"><small>Paid</small><strong>${money(list.reduce((s,p)=>s+paidFor(p),0))}</strong></div><div class="stat"><small>Outstanding</small><strong>${money(list.reduce((s,p)=>s+remaining(p),0))}</strong></div></div>`+table(rows,['Date','Firm','Material','Actual Q','Payable','Paid','Outstanding']);}
+$('showLedger').onclick=renderLedger;$('ledgerFirm').onchange=renderLedger;
+$('exportLedger').onclick=()=>{const firm=$('ledgerFirm').value,sup=$('ledgerSupplier').value.trim().toLowerCase();const list=filtered(activePurchases(),firm,'','').filter(p=>!sup||p.supplier.toLowerCase()===sup);csvDownload('supplier_ledger_'+today()+'.csv',purchaseRows(list));};
+function refreshPaymentSelect(){const list=activePurchases().slice().sort((a,b)=>b.date.localeCompare(a.date));$('paymentPurchase').innerHTML=list.map(p=>`<option value="${p.id}">${esc(p.date)} · ${esc(p.firm)} · ${esc(p.supplier)} · ${esc(p.material)} · due ${money(remaining(p))}</option>`).join('');$('paymentDate').value=today();renderPayments();}
+function renderPayments(){const id=$('paymentPurchase').value;const list=db.payments.filter(p=>p.purchaseId===id);$('paymentsList').innerHTML=table(list.map(p=>`<tr><td>${esc(p.date)}</td><td>${money(p.amount)}</td><td>${esc(p.mode||'')}</td><td><button class="small danger" onclick="deletePayment('${p.id}')">Undo</button></td></tr>`),['Date','Amount','Mode/reference','Action']);}
+$('paymentPurchase').onchange=renderPayments;
+$('addPayment').onclick=()=>{const id=$('paymentPurchase').value,amount=num($('paymentAmount').value);if(!id||amount<=0){alert('Select a purchase and enter a payment amount.');return;}const p=db.purchases.find(x=>x.id===id);if(!p)return;db.payments.push({id:uid(),purchaseId:id,date:$('paymentDate').value||today(),amount,mode:$('paymentMode').value.trim(),createdAt:new Date().toISOString()});save();$('paymentAmount').value='';$('paymentMode').value='';refreshPaymentSelect();renderDashboard();alert('Payment recorded.');};
+function deletePayment(id){if(!confirm('Undo this payment record?'))return;db.payments=db.payments.filter(p=>p.id!==id);save();refreshPaymentSelect();renderDashboard();}
+function makeReceipt(id){const p=db.purchases.find(x=>x.id===id);if(!p)return;const c=calc(p.qty,p.rate);const txt=`${p.firm}\nRAW MATERIAL RECEIPT\nDate: ${p.date}\nSupplier: ${p.supplier}\nVillage: ${p.village||'-'}\nPhone: ${p.phone||'-'}\nMaterial: ${p.material}\nActual weight: ${num(p.qty).toFixed(3)} Q\nRate: ${money(p.rate)}/Q\nWeight deduction: ${c.weightDed.toFixed(3)} Q\nNet weight: ${c.net.toFixed(3)} Q\nAmount after weight deduction: ${money(c.amount)}\nLabour: ${money(c.labour)}\n1% deduction: ${money(c.deduction)}\nFINAL PAYABLE: ${money(c.final)}\nPaid: ${money(paidFor(p))}\nOutstanding: ${money(remaining(p))}\nNotes: ${p.notes||'-'}`;if(navigator.share)navigator.share({title:'Purchase receipt',text:txt}).catch(()=>copyText(txt));else copyText(txt);}
+function copyText(txt){const blob=new Blob([txt],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='receipt_'+today()+'.txt';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+$('shareReceipt').onclick=()=>{const id=$('editId').value;if(id)makeReceipt(id);else{const p={id:'preview',firm:$('firm').value,material:$('material').value,date:$('date').value,supplier:$('supplier').value,village:$('village').value,phone:$('phone').value,qty:num($('qty').value),rate:num($('rate').value),initialPaid:num($('paid').value),notes:$('notes').value};if(!p.firm||!p.material||!p.supplier||!p.qty){alert('Fill firm, material, supplier and weight first.');return;}const c=calc(p.qty,p.rate);const txt=`${p.firm}\nRAW MATERIAL RECEIPT\nDate: ${p.date}\nSupplier: ${p.supplier}\nMaterial: ${p.material}\nActual weight: ${p.qty} Q\nRate: ${money(p.rate)}/Q\nNet weight: ${c.net.toFixed(3)} Q\nFinal payable: ${money(c.final)}\nPaid: ${money(p.initialPaid)}\nDue: ${money(Math.max(0,c.final-p.initialPaid))}`;if(navigator.share)navigator.share({title:'Purchase receipt',text:txt}).catch(()=>copyText(txt));else copyText(txt);}};
+$('backupJson').onclick=()=>{const blob=new Blob([JSON.stringify({...db,exportedAt:new Date().toISOString(),formatVersion:1},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='business_payment_backup_'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+$('backupCsv').onclick=()=>csvDownload('all_purchases_'+today()+'.csv',purchaseRows(db.purchases));
+$('restoreBtn').onclick=async()=>{const f=$('restoreFile').files[0];if(!f){alert('Choose a JSON backup file first.');return;}try{const data=JSON.parse(await f.text());if(!Array.isArray(data.purchases)||!Array.isArray(data.payments))throw new Error('This is not a valid backup.');for(const p of data.purchases){const i=db.purchases.findIndex(x=>x.id===p.id);if(i>=0)db.purchases[i]=p;else db.purchases.push(p);}for(const p of data.payments){if(!db.payments.some(x=>x.id===p.id))db.payments.push(p);}save();alert('Backup restored/merged successfully.');renderDashboard();}catch(e){alert('Restore failed: '+e.message);}};
+$('clearAll').onclick=()=>{if(!confirm('Permanently delete all purchases and payments from this device? Download a backup first.'))return;if(!confirm('Final confirmation: delete all local business records?'))return;db={purchases:[],payments:[]};save();renderDashboard();renderRecords();refreshPaymentSelect();alert('Local data cleared.');};
+$('dashFirm').value='Both firms';$('avgFirm').value='Both firms';$('dashFrom').value=today();$('dashTo').value=today();$('avgFrom').value=today();$('avgTo').value=today();$('date').value=today();$('paymentDate').value=today();
+resetForm();renderDashboard();renderRecords();refreshSupplierList();refreshPaymentSelect();
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
+</script>
+</body></html>
